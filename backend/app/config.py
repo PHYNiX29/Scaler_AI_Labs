@@ -1,47 +1,15 @@
 import os
-from datetime import timedelta
+from pathlib import Path
 
-basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Everything that must survive a restart (SQLite file + uploaded media) lives in DATA_DIR.
+# In production this points at a mounted persistent volume (e.g. /data on Railway).
+DATA_DIR = Path(os.environ.get("DATA_DIR", BASE_DIR / "data"))
+UPLOAD_DIR = DATA_DIR / "uploads"
+DATABASE_URL = f"sqlite:///{DATA_DIR / 'typeform.db'}"
 
-class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "typeform-secret-super-key-2026-production-ready")
-    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "jwt-typeform-secret-key-2026-super-secure-32bytes-min")
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=7)
+CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")]
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", f"sqlite:///{os.path.join(basedir, 'typeform_clone.db')}"
-    )
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-    RATELIMIT_DEFAULT = "200 per minute"
-    RATELIMIT_STORAGE_URI = "memory://"
-    RATELIMIT_STRATEGY = "fixed-window"
-
-    UPLOAD_FOLDER = os.path.join(basedir, "uploads")
-    ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "mp4", "webm"}
-    MAX_CONTENT_LENGTH = 32 * 1024 * 1024  # 32MB max upload limit
-
-    CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*").split(",")
-
-
-class DevelopmentConfig(Config):
-    DEBUG = True
-
-
-class ProductionConfig(Config):
-    DEBUG = False
-
-
-class TestingConfig(Config):
-    TESTING = True
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
-    RATELIMIT_ENABLED = False
-
-
-config = {
-    "development": DevelopmentConfig,
-    "production": ProductionConfig,
-    "testing": TestingConfig,
-    "default": DevelopmentConfig,
-}
+ALLOWED_UPLOAD_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "mp4", "webm"}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024

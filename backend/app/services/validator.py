@@ -2,7 +2,7 @@ import re
 from typing import Dict, Any, Tuple, Optional
 
 
-EMAIL_REGEX = re.compile(r"^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$")
+EMAIL_REGEX = re.compile(r"^[\w\.-]+@([\w-]+\.)+[\w-]{2,}$")
 
 
 def validate_answer(question: Any, answer_value: Any) -> Tuple[bool, Optional[str]]:
@@ -83,6 +83,11 @@ def validate_answer(question: Any, answer_value: Any) -> Tuple[bool, Optional[st
         if isinstance(answer_value, str) and answer_value.lower() in ("yes", "no", "true", "false"):
             return True, None
         return False, "Answer must be either Yes or No."
+
+    elif q_type == "date":
+        if not isinstance(answer_value, str) or not re.match(r"^\d{4}-\d{2}-\d{2}$", answer_value.strip()):
+            return False, "Please enter a valid date in YYYY-MM-DD format."
+        return True, None
 
     elif q_type == "dropdown":
         choices = props.get("choices", [])

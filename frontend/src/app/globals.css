@@ -1,0 +1,231 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --color-ink: #262627; /* Typeform's near-black text */
+  --color-plum: #3a2e3d; /* dark primary buttons in the admin UI */
+  --color-plum-hover: #2a212c;
+  --color-panel: #f7f7f6; /* grey cards the admin UI is built from */
+  --color-line: #e3e3e3;
+  --color-muted: #737373;
+  --color-brand-green: #0f7b68;
+}
+
+body {
+  margin: 0;
+  background: #fff;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+button:not(:disabled),
+[role="button"] {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid #5b8def;
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 9999px;
+}
+
+/* ---- Respondent flow: every page change fades the old page out, then the new one in ---- */
+.page-in {
+  animation: page-in 0.4s ease-out both;
+}
+.page-out {
+  animation: page-out 0.25s ease-in both;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+@keyframes page-out {
+  to {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+}
+
+/* Typeform blinks the chosen answer before moving on */
+.choice-picked {
+  animation: choice-picked 0.25s linear 2;
+}
+@keyframes choice-picked {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.toast-in,
+.pop-in {
+  animation: pop-in 0.18s ease-out both;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-in,
+  .page-out,
+  .choice-picked,
+  .toast-in,
+  .pop-in {
+    animation-duration: 1ms;
+  }
+}
+
+/* Dotted grid behind the workflow diagram */
+.workflow-grid {
+  background-color: #f7f7f6;
+  background-image: radial-gradient(#dcdcdc 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Landing page hero */
+.landing-hero {
+  background: #1f1a21;
+  background-image: radial-gradient(circle at 50% 110%, rgba(190, 120, 255, 0.35), transparent 55%);
+}
+
+/* ---- Form canvas (respondent view + builder preview). Colours come from the form's theme
+   via --tf-* variables set on the canvas root, so one stylesheet serves every theme. ---- */
+.tf-btn {
+  background: var(--tf-btn);
+  color: var(--tf-btn-text);
+  border-radius: 6px;
+  font-weight: 700;
+  padding: 8px 14px;
+  font-size: 18px;
+  line-height: 1.3;
+  transition: opacity 0.15s;
+}
+.tf-btn:hover {
+  opacity: 0.85;
+}
+.tf-input {
+  width: 100%;
+  background: transparent;
+  color: inherit;
+  font-size: 24px;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tf-text) 35%, transparent);
+  outline: none;
+  resize: none;
+}
+.tf-input:focus {
+  border-bottom: 2px solid var(--tf-text);
+  padding-bottom: 7px;
+}
+.tf-input::placeholder {
+  color: color-mix(in srgb, var(--tf-text) 30%, transparent);
+}
+.tf-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-size: 18px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: inherit;
+  background: color-mix(in srgb, var(--tf-bg) 55%, color-mix(in srgb, var(--tf-text) 8%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tf-text) 25%, transparent);
+  backdrop-filter: blur(6px);
+  transition: background 0.1s, box-shadow 0.1s;
+}
+.tf-choice:hover {
+  background: color-mix(in srgb, var(--tf-bg) 40%, color-mix(in srgb, var(--tf-text) 16%, transparent));
+}
+.tf-choice[aria-checked="true"],
+.tf-choice[aria-selected="true"] {
+  box-shadow: inset 0 0 0 2px var(--tf-text);
+}
+.tf-key {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--tf-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tf-text) 35%, transparent);
+}
+.tf-choice[aria-checked="true"] .tf-key {
+  background: var(--tf-text);
+  color: var(--tf-bg);
+}
+
+/* ---- Admin UI building blocks ---- */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-plum);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: 8px;
+}
+.btn-primary:hover {
+  background: var(--color-plum-hover);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+}
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #fff;
+  font-size: 14px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--color-line);
+}
+.btn-secondary:hover {
+  background: var(--color-panel);
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #404040;
+}
+.icon-btn:hover {
+  background: #ebebeb;
+}
+.text-input {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+.card {
+  background: var(--color-panel);
+  border-radius: 16px;
+}

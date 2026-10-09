@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime, timezone, timedelta
-from app.extensions import db
 from app.models.user import User
 from app.models.form import Form
 from app.models.question import Question
@@ -8,18 +7,17 @@ from app.models.response import Response
 from app.models.answer import Answer
 
 
-def seed_database():
+def seed_database(db):
     """Seeds the database with default creator user, sample published forms and responses."""
     # 1. Create or get default demo creator user
-    admin_user = User.query.filter_by(email="demo@scaler.ai").first()
+    admin_user = db.query(User).filter_by(email="demo@scaler.ai").first()
     if not admin_user:
         admin_user = User(email="demo@scaler.ai", name="Scaler Product Team")
-        admin_user.set_password("scaler2026")
-        db.session.add(admin_user)
-        db.session.commit()
+        db.add(admin_user)
+        db.commit()
 
     # Check if forms already exist
-    if Form.query.first():
+    if db.query(Form).first():
         print("Database already contains forms. Skipping seeding.")
         return
 
@@ -33,25 +31,16 @@ def seed_database():
         slug="customer-feedback",
         status="published",
         views_count=142,
-        submissions_count=28,
         theme_settings={
             "font_family": "Inter",
             "text_color": "#18181B",
             "background_color": "#F8FAFC",
             "button_color": "#4F46E5",
             "button_text_color": "#FFFFFF",
-            "is_bold": False,
-            "is_italic": False,
-            "progress_bar": "percentage",
-        },
-        settings={
-            "show_progress_bar": True,
-            "show_question_numbers": True,
-            "letters_on_answers": True,
         },
     )
-    db.session.add(csat_form)
-    db.session.flush()
+    db.add(csat_form)
+    db.flush()
 
     # Question 0: Welcome Screen (with time to complete badge)
     q0_welcome = Question(
@@ -69,8 +58,8 @@ def seed_database():
         media={
             "media_type": "image",
             "media_url": "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1200&q=80",
-            "desktop_orientation": "right_split_1_3",
-            "mobile_orientation": "top",
+            "desktop_orientation": "split_right",
+            "mobile_orientation": "stack",
             "alt_text": "Team collaboration",
         },
     )
@@ -90,8 +79,8 @@ def seed_database():
         media={
             "media_type": "image",
             "media_url": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80",
-            "desktop_orientation": "left_box",
-            "mobile_orientation": "top",
+            "desktop_orientation": "float_left",
+            "mobile_orientation": "stack",
             "alt_text": "Star rating",
         },
     )
@@ -104,17 +93,12 @@ def seed_database():
         title="Did our recent AI feature improvements save you time?",
         description="Think about your daily workflow over the past month.",
         required=True,
-        properties={
-            "branching": {
-                "yes": None,  # Continue to next (multiple choice)
-                "no": None,
-            }
-        },
+        properties={},
         media={
             "media_type": None,
             "media_url": None,
-            "desktop_orientation": "right_split_1_3",
-            "mobile_orientation": "top",
+            "desktop_orientation": "split_right",
+            "mobile_orientation": "stack",
             "alt_text": "",
         },
     )
@@ -136,15 +120,14 @@ def seed_database():
             ],
             "allow_multiple": False,
             "allow_other": True,
-            "allow_none": True,
+            "allow_none": False,
             "randomize": False,
-            "branching": [],
         },
         media={
             "media_type": "image",
             "media_url": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80",
-            "desktop_orientation": "right_box",
-            "mobile_orientation": "top",
+            "desktop_orientation": "float_right",
+            "mobile_orientation": "stack",
             "alt_text": "Department team",
         },
     )
@@ -169,8 +152,8 @@ def seed_database():
         media={
             "media_type": None,
             "media_url": None,
-            "desktop_orientation": "left_split_1_3",
-            "mobile_orientation": "top",
+            "desktop_orientation": "split_left",
+            "mobile_orientation": "stack",
             "alt_text": "",
         },
     )
@@ -220,8 +203,8 @@ def seed_database():
         media={
             "media_type": "image",
             "media_url": "https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=800&q=80",
-            "desktop_orientation": "left_split_1_3",
-            "mobile_orientation": "top",
+            "desktop_orientation": "split_left",
+            "mobile_orientation": "stack",
             "alt_text": "Contact workspace",
         },
     )
@@ -241,8 +224,8 @@ def seed_database():
         media={
             "media_type": None,
             "media_url": None,
-            "desktop_orientation": "right_split_1_3",
-            "mobile_orientation": "top",
+            "desktop_orientation": "split_right",
+            "mobile_orientation": "stack",
             "alt_text": "",
         },
     )
@@ -268,8 +251,8 @@ def seed_database():
         media={
             "media_type": "image",
             "media_url": "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1200&q=80",
-            "desktop_orientation": "background",
-            "mobile_orientation": "background",
+            "desktop_orientation": "wallpaper",
+            "mobile_orientation": "wallpaper",
             "alt_text": "Thank you celebration",
         },
     )
@@ -284,18 +267,16 @@ def seed_database():
         q6_longtext,
         q7_thankyou,
     ]
-    db.session.add_all(csat_questions)
-    db.session.flush()
+    db.add_all(csat_questions)
+    db.flush()
 
     # Branching: Set yes/no branching in Q2
     # If Yes -> jump directly to Q3 (dept)
     # If No -> jump directly to Q4 (cadence)
-    q2_yesno.properties = {
-        "branching": {
-            "yes": q3_mc.id,
-            "no": q4_dropdown.id,
-        }
-    }
+    q2_yesno.logic_jumps = [
+        {"choice_id": "yes", "target_question_id": q3_mc.id},
+        {"choice_id": "no", "target_question_id": q4_dropdown.id},
+    ]
 
     # ================= Seed Responses for Form 1 =================
     sample_users = [
@@ -381,8 +362,8 @@ def seed_database():
             submitted_at=sub_time,
             time_taken_seconds=su["duration"],
         )
-        db.session.add(resp)
-        db.session.flush()
+        db.add(resp)
+        db.flush()
 
         # Add answers
         a1 = Answer(response_id=resp.id, question_id=q1_rating.id, question_type="rating", value=su["r1"])
@@ -391,7 +372,8 @@ def seed_database():
         a4 = Answer(response_id=resp.id, question_id=q4_dropdown.id, question_type="dropdown", value=su["r4"])
         a5 = Answer(response_id=resp.id, question_id=q5_contact.id, question_type="contact", value=su["r5"])
         a6 = Answer(response_id=resp.id, question_id=q6_longtext.id, question_type="long_text", value=su["r6"])
-        db.session.add_all([a1, a2, a3, a4, a5, a6])
+        # "No" on Q2 branches past Q3, so those respondents never answered it
+        db.add_all([a for a in (a1, a2, a3, a4, a5, a6) if not (a is a3 and su["r2"] == "No")])
 
     csat_form.submissions_count = len(sample_users)
 
@@ -403,20 +385,16 @@ def seed_database():
         slug="ai-summit-rsvp",
         status="published",
         views_count=85,
-        submissions_count=12,
         theme_settings={
             "font_family": "Inter",
             "text_color": "#0F172A",
             "background_color": "#FFFFFF",
             "button_color": "#0EA5E9",
             "button_text_color": "#FFFFFF",
-            "is_bold": False,
-            "is_italic": False,
-            "progress_bar": "percentage",
         },
     )
-    db.session.add(event_form)
-    db.session.flush()
+    db.add(event_form)
+    db.flush()
 
     # Welcome screen showing number of submissions
     e_q0 = Question(
@@ -434,8 +412,8 @@ def seed_database():
         media={
             "media_type": "image",
             "media_url": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&q=80",
-            "desktop_orientation": "left_split_1_3",
-            "mobile_orientation": "top",
+            "desktop_orientation": "split_left",
+            "mobile_orientation": "stack",
             "alt_text": "Conference Stage",
         },
     )
@@ -498,7 +476,33 @@ def seed_database():
             "show_reload_button": False,
         },
     )
-    db.session.add_all([e_q0, e_q1, e_q2, e_q3])
+    db.add_all([e_q0, e_q1, e_q2, e_q3])
+    db.flush()
 
-    db.session.commit()
+    # ================= Seed Responses for Form 2 =================
+    attendees = [
+        ("Priya", "Nair", "priya@latticeai.dev", "Lattice AI", ["Large Language Models & Agentic Workflows"]),
+        ("Tom", "Becker", "tom.becker@gridscale.io", "GridScale", ["GPU Infrastructure & Distributed Training", "Multimodal Vision & Robotics"]),
+        ("Aiko", "Tanaka", "aiko@safeloop.org", "SafeLoop", ["Safety, Alignment & Governance", "Large Language Models & Agentic Workflows"]),
+    ]
+    for i, (first, last, email, company, tracks) in enumerate(attendees):
+        sub_time = datetime.now(timezone.utc) - timedelta(hours=5 * (i + 1))
+        resp = Response(
+            form_id=event_form.id,
+            session_id=uuid.uuid4().hex,
+            status="completed",
+            started_at=sub_time - timedelta(seconds=40),
+            submitted_at=sub_time,
+            time_taken_seconds=40,
+        )
+        db.add(resp)
+        db.flush()
+        db.add_all([
+            Answer(response_id=resp.id, question_id=e_q1.id, question_type="contact",
+                   value={"first_name": first, "last_name": last, "email": email, "company": company}),
+            Answer(response_id=resp.id, question_id=e_q2.id, question_type="multiple_choice", value=tracks),
+        ])
+    event_form.submissions_count = len(attendees)
+
+    db.commit()
     print("Seeding completed successfully!")

@@ -1,59 +1,49 @@
 import uuid
 from datetime import datetime, timezone
-from app.extensions import db
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String, Text
+from app.database import Base
 
 
-class Question(db.Model):
+class Question(Base):
     __tablename__ = "questions"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: uuid.uuid4().hex)
-    form_id = db.Column(
-        db.String(36), db.ForeignKey("forms.id", ondelete="CASCADE"), nullable=False, index=True
+    id = Column(String(36), primary_key=True, default=lambda: uuid.uuid4().hex)
+    form_id = Column(
+        String(36), ForeignKey("forms.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    order_index = db.Column(db.Integer, nullable=False, default=0, index=True)
-    question_type = db.Column(db.String(50), nullable=False)
+    order_index = Column(Integer, nullable=False, default=0, index=True)
+    question_type = Column(String(50), nullable=False)
     # Types: welcome, dropdown, multiple_choice, contact, rating, yes_no, short_text, long_text, email, number, date, thank_you
 
-    title = db.Column(db.String(500), nullable=False, default="")
-    description = db.Column(db.Text, nullable=True, default="")
-    required = db.Column(db.Boolean, default=False)
+    title = Column(String(500), nullable=False, default="")
+    description = Column(Text, nullable=True, default="")
+    required = Column(Boolean, default=False)
 
     # Question-specific properties (choices, fields, badges, icons, limits, etc.)
-    properties = db.Column(db.JSON, nullable=False, default=dict)
+    properties = Column(JSON, nullable=False, default=dict)
 
     # Media attachments (image or video) with desktop & mobile orientations
-    # desktop_orientation: "left_split_1_3" | "right_split_1_3" | "left_box" | "right_box" | "background"
-    # mobile_orientation: "top" | "background"
-    media = db.Column(
-        db.JSON,
+    # desktop_orientation: "split_left" | "split_right" | "float_left" | "float_right" | "wallpaper"
+    # mobile_orientation: "stack" | "wallpaper"
+    media = Column(
+        JSON,
         nullable=False,
         default=lambda: {
             "media_type": None,  # "image" | "video" | None
             "media_url": None,
-            "desktop_orientation": "right_split_1_3",
-            "mobile_orientation": "top",
+            "desktop_orientation": "float_right",
+            "mobile_orientation": "stack",
             "alt_text": "",
         },
     )
 
-    # Logic jumps / branching configuration
-    # Can contain direct target for next question or conditional branching rules
-    logic_jumps = db.Column(db.JSON, nullable=False, default=list)
+    # Branching rules: [{"choice_id": <choice id | "yes" | "no">, "target_question_id": <question or ending id>}]
+    # No matching rule means "continue to the next question in order".
+    logic_jumps = Column(JSON, nullable=False, default=list)
 
-    # Per-question styling override (text color, bold, italic)
-    styling = db.Column(
-        db.JSON,
-        nullable=False,
-        default=lambda: {
-            "text_color": None,
-            "is_bold": False,
-            "is_italic": False,
-        },
-    )
-
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = db.Column(
-        db.DateTime,
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -72,12 +62,11 @@ class Question(db.Model):
             or {
                 "media_type": None,
                 "media_url": None,
-                "desktop_orientation": "right_split_1_3",
-                "mobile_orientation": "top",
+                "desktop_orientation": "float_right",
+                "mobile_orientation": "stack",
                 "alt_text": "",
             },
             "logic_jumps": self.logic_jumps or [],
-            "styling": self.styling or {"text_color": None, "is_bold": False, "is_italic": False},
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

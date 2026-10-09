@@ -1,21 +1,22 @@
 import uuid
 from datetime import datetime, timezone
-from app.extensions import db
+from sqlalchemy import Column, DateTime, ForeignKey, JSON, String
+from app.database import Base
 
 
-class Answer(db.Model):
+class Answer(Base):
     __tablename__ = "answers"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: uuid.uuid4().hex)
-    response_id = db.Column(
-        db.String(36), db.ForeignKey("responses.id", ondelete="CASCADE"), nullable=False, index=True
+    id = Column(String(36), primary_key=True, default=lambda: uuid.uuid4().hex)
+    response_id = Column(
+        String(36), ForeignKey("responses.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    question_id = db.Column(
-        db.String(36), db.ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True
+    question_id = Column(
+        String(36), ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    question_type = db.Column(db.String(50), nullable=True)
-    value = db.Column(db.JSON, nullable=True)  # Can be string, list of strings, dict (for contact), int/float
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    question_type = Column(String(50), nullable=True)
+    value = Column(JSON, nullable=True)  # Can be string, list of strings, dict (for contact), int/float
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {

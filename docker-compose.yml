@@ -1,22 +1,12 @@
-version: '3.8'
-
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: typeform_clone_backend
+    build: ./backend
     ports:
       - "5000:5000"
     environment:
-      - FLASK_ENV=production
-      - SECRET_KEY=super-secret-typeform-key-scaler-ai-2026
-      - JWT_SECRET_KEY=super-secret-jwt-key-scaler-ai-2026-minimum-32-bytes
-      - DATABASE_URL=sqlite:////app/typeform_clone.db
-      - CORS_ORIGINS=*
+      - CORS_ORIGINS=http://localhost:3000
     volumes:
-      - backend_data:/app
-      - ./backend/uploads:/app/uploads
+      - backend_data:/data
     restart: unless-stopped
 
 volumes:

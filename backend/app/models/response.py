@@ -1,29 +1,27 @@
 import uuid
 from datetime import datetime, timezone
-from app.extensions import db
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+from app.database import Base
 
 
-class Response(db.Model):
+class Response(Base):
     __tablename__ = "responses"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: uuid.uuid4().hex)
-    form_id = db.Column(
-        db.String(36), db.ForeignKey("forms.id", ondelete="CASCADE"), nullable=False, index=True
+    id = Column(String(36), primary_key=True, default=lambda: uuid.uuid4().hex)
+    form_id = Column(
+        String(36), ForeignKey("forms.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
-    def __init__(self, **kwargs):
-        if "id" not in kwargs:
-            kwargs["id"] = uuid.uuid4().hex
-        super().__init__(**kwargs)
-    session_id = db.Column(db.String(100), nullable=False, index=True)
-    ip_address = db.Column(db.String(45), nullable=True, index=True)
-    user_agent = db.Column(db.String(500), nullable=True)
-    status = db.Column(db.String(20), nullable=False, default="in_progress")  # in_progress | completed
-    started_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    submitted_at = db.Column(db.DateTime, nullable=True)
-    time_taken_seconds = db.Column(db.Integer, nullable=True, default=0)
+    session_id = Column(String(100), nullable=False, index=True)
+    ip_address = Column(String(45), nullable=True, index=True)
+    user_agent = Column(String(500), nullable=True)
+    status = Column(String(20), nullable=False, default="in_progress")  # in_progress | completed
+    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    submitted_at = Column(DateTime, nullable=True)
+    time_taken_seconds = Column(Integer, nullable=True, default=0)
 
-    answers = db.relationship(
+    answers = relationship(
         "Answer",
         backref="response",
         lazy="joined",

@@ -1,53 +1,28 @@
-import os
 import uuid
-from flask import Blueprint, request, jsonify, send_from_directory, current_app
-from werkzeug.utils import secure_filename
 
-upload_bp = Blueprint("uploads", __name__)
+from fastapi import APIRouter, HTTPException, UploadFile
 
+from app.config import ALLOWED_UPLOAD_EXTENSIONS, MAX_UPLOAD_BYTES, UPLOAD_DIR
 
-def allowed_file(filename):
-    allowed_exts = current_app.config.get("ALLOWED_EXTENSIONS", {"png", "jpg", "jpeg", "gif", "webp", "mp4", "webm"})
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_exts
+router = APIRouter(tags=["uploads"])
 
 
-@upload_bp.route("/api/upload", methods=["POST"])
-def upload_file():
-    if "file" not in request.files:
-        return jsonify({"error": "No file part in request"}), 400
+@router.post("/api/upload", status_code=201)
+def upload_media(file: UploadFile):
+    """Stores an image/video for a question. Files are served back from /uploads/<name>."""
+    extension = (file.filename or "").rsplit(".", 1)[-1].lower()
+    if extension not in ALLOWED_UPLOAD_EXTENSIONS:
+        raise HTTPException(422, "File type not supported")
 
-    file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"error": "No file selected"}), 400
+    content = file.file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "File is larger than 10 MB")
 
-    if not allowed_file(file.filename):
-        return jsonify({"error": "File type not supported"}), 400
-
-    original_ext = file.filename.rsplit(".", 1)[1].lower()
-    unique_filename = f"{uuid.uuid4().hex}.{original_ext}"
-    upload_dir = current_app.config["UPLOAD_FOLDER"]
-    os.makedirs(upload_dir, exist_ok=True)
-
-    file_path = os.path.join(upload_dir, unique_filename)
-    file.save(file_path)
-
-    media_type = "video" if original_ext in ("mp4", "webm") else "image"
-    file_url = f"/uploads/{unique_filename}"
-
-    return (
-        jsonify(
-            {
-                "message": "File uploaded successfully",
-                "filename": unique_filename,
-                "url": file_url,
-                "media_type": media_type,
-            }
-        ),
-        201,
-    )
-
-
-@upload_bp.route("/uploads/<filename>", methods=["GET"])
-def get_uploaded_file(filename):
-    upload_dir = current_app.config["UPLOAD_FOLDER"]
-    return send_from_directory(upload_dir, secure_filename(filename))
+    # The stored name is generated, never taken from the client, so it cannot escape UPLOAD_DIR
+    filename = f"{uuid.uuid4().hex}.{extension}"
+    (UPLOAD_DIR / filename).write_bytes(content)
+    return {
+        "filename": filename,
+        "url": f"/uploads/{filename}",
+        "media_type": "video" if extension in ("mp4", "webm") else "image",
+    }

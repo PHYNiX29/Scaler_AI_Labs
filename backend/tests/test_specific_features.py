@@ -1,162 +1,54 @@
-import pytest
 from app.models.question import Question
 from app.services.validator import validate_answer
-from app.services.logic_engine import evaluate_next_step
+from app.services.logic_engine import evaluate_next_step, walk_path
 
 
-def test_welcome_page_stat_badges(client, auth_headers):
-    """Verifies welcome screen supports either 'submissions' or 'time_to_complete', only one."""
-    create_res = client.post(
-        "/api/forms",
-        json={"title": "Welcome Badge Test", "include_starter": False},
-        headers=auth_headers,
+def make_questions():
+    mc = Question(
+        id="mc", order_index=1, question_type="multiple_choice", title="Framework",
+        properties={"choices": [{"id": "c1", "label": "React"}, {"id": "c2", "label": "Vue"}]},
+        logic_jumps=[{"choice_id": "c2", "target_question_id": "vue"}, {"choice_id": "c1", "target_question_id": "end_b"}],
     )
-    form_id = create_res.get_json()["form"]["id"]
-
-    # Welcome with time_to_complete
-    q_res1 = client.post(
-        f"/api/forms/{form_id}/questions",
-        json={
-            "question_type": "welcome",
-            "title": "Welcome 1",
-            "properties": {
-                "button_text": "Start Now",
-                "stat_badge_type": "time_to_complete",
-                "estimated_time_minutes": 3,
-            },
-        },
-        headers=auth_headers,
-    )
-    assert q_res1.status_code == 201
-    props1 = q_res1.get_json()["question"]["properties"]
-    assert props1["stat_badge_type"] == "time_to_complete"
-    assert props1["estimated_time_minutes"] == 3
-
-    # Update to submissions badge
-    q_id = q_res1.get_json()["question"]["id"]
-    q_res2 = client.put(
-        f"/api/forms/{form_id}/questions/{q_id}",
-        json={
-            "properties": {
-                "button_text": "Let's Go",
-                "stat_badge_type": "submissions",
-            }
-        },
-        headers=auth_headers,
-    )
-    assert q_res2.status_code == 200
-    props2 = q_res2.get_json()["question"]["properties"]
-    assert props2["stat_badge_type"] == "submissions"
-
-
-def test_media_desktop_and_mobile_orientations(client, auth_headers):
-    """Verifies all 5 desktop orientations and 2 mobile orientations can be saved & retrieved."""
-    desktop_orientations = [
-        "left_split_1_3",
-        "right_split_1_3",
-        "left_box",
-        "right_box",
-        "background",
-    ]
-    mobile_orientations = ["top", "background"]
-
-    create_res = client.post(
-        "/api/forms",
-        json={"title": "Media Orientation Test", "include_starter": False},
-        headers=auth_headers,
-    )
-    form_id = create_res.get_json()["form"]["id"]
-
-    for d_orient in desktop_orientations:
-        for m_orient in mobile_orientations:
-            q_res = client.post(
-                f"/api/forms/{form_id}/questions",
-                json={
-                    "question_type": "dropdown",
-                    "title": f"Media test {d_orient} {m_orient}",
-                    "media": {
-                        "media_type": "image",
-                        "media_url": "https://example.com/asset.png",
-                        "desktop_orientation": d_orient,
-                        "mobile_orientation": m_orient,
-                        "alt_text": "Hero graphic",
-                    },
-                    "styling": {
-                        "text_color": "#4338CA",
-                        "is_bold": True,
-                        "is_italic": False,
-                    },
-                },
-                headers=auth_headers,
-            )
-            assert q_res.status_code == 201
-            media_data = q_res.get_json()["question"]["media"]
-            assert media_data["desktop_orientation"] == d_orient
-            assert media_data["mobile_orientation"] == m_orient
-            styling = q_res.get_json()["question"]["styling"]
-            assert styling["text_color"] == "#4338CA"
-            assert styling["is_bold"] is True
-
-
-def test_multiple_choice_branching_and_multiple_selection():
-    """Verifies that multiple choice supports branching when single select, and disables branching when multi-select."""
-    q_single = Question(
-        id="q_mc_1",
-        form_id="f1",
-        order_index=1,
-        question_type="multiple_choice",
-        title="Favorite framework",
-        required=True,
-        properties={
-            "choices": [{"id": "c1", "label": "React"}, {"id": "c2", "label": "Vue"}],
-            "allow_multiple": False,
-            "allow_other": True,
-            "allow_none": True,
-            "branching": [
-                {"choice_id": "c1", "choice_label": "React", "target_question_id": "q_react_deep_dive"},
-                {"choice_id": "c2", "choice_label": "Vue", "target_question_id": "q_vue_deep_dive"},
-            ],
-        },
-    )
-
-    all_q = [
-        q_single,
-        Question(id="q_react_deep_dive", order_index=2, question_type="short_text"),
-        Question(id="q_vue_deep_dive", order_index=3, question_type="short_text"),
+    return [
+        Question(id="welcome", order_index=0, question_type="welcome", logic_jumps=[]),
+        mc,
+        Question(id="react", order_index=2, question_type="short_text", required=True, logic_jumps=[]),
+        Question(id="vue", order_index=3, question_type="short_text", logic_jumps=[]),
+        Question(id="end_a", order_index=4, question_type="thank_you", logic_jumps=[]),
+        Question(id="end_b", order_index=5, question_type="thank_you", logic_jumps=[]),
     ]
 
-    # Test branching to React target
-    eval_react = evaluate_next_step(q_single, "React", all_q)
-    assert eval_react["is_jump"] is True
-    assert eval_react["next_question_id"] == "q_react_deep_dive"
 
-    # Test branching to Vue target
-    eval_vue = evaluate_next_step(q_single, "Vue", all_q)
-    assert eval_vue["is_jump"] is True
-    assert eval_vue["next_question_id"] == "q_vue_deep_dive"
+def test_branching_rules_and_sequential_fallback():
+    questions = make_questions()
+    mc, react, vue = questions[1], questions[2], questions[3]
 
-    # When allow_multiple is True, branching rules should NOT be triggered
-    q_multi = Question(
-        id="q_mc_multi",
-        form_id="f1",
-        order_index=1,
-        question_type="multiple_choice",
-        title="Languages used",
-        properties={
-            "choices": [{"id": "c1", "label": "Python"}, {"id": "c2", "label": "TypeScript"}],
-            "allow_multiple": True,
-            "branching": [
-                {"choice_label": "Python", "target_question_id": "q_python_deep_dive"}
-            ],
-        },
-    )
-    all_multi_q = [
-        q_multi,
-        Question(id="q_next_seq", order_index=2, question_type="short_text"),
-    ]
-    eval_multi = evaluate_next_step(q_multi, ["Python", "TypeScript"], all_multi_q)
-    assert eval_multi["is_jump"] is False
-    assert eval_multi["next_question_id"] == "q_next_seq"
+    # A rule jumps to its target question
+    assert evaluate_next_step(mc, "Vue", questions) == {"next_question_id": "vue", "is_end": False}
+    # A rule can target a specific ending
+    assert evaluate_next_step(mc, "React", questions) == {"next_question_id": "end_b", "is_end": True}
+    # No matching rule (unknown answer, or a multi-select list): next question in order
+    assert evaluate_next_step(mc, "Svelte", questions)["next_question_id"] == "react"
+    assert evaluate_next_step(mc, ["React", "Vue"], questions)["next_question_id"] == "react"
+    # After the last question: the first ending
+    assert evaluate_next_step(vue, "x", questions) == {"next_question_id": "end_a", "is_end": True}
+    # A rule whose target was deleted falls back to sequential
+    mc.logic_jumps = [{"choice_id": "c2", "target_question_id": "gone"}]
+    assert evaluate_next_step(mc, "Vue", questions)["next_question_id"] == "react"
+    # No endings at all
+    assert evaluate_next_step(vue, "x", [mc, react, vue]) == {"next_question_id": None, "is_end": True}
+
+
+def test_walk_path_follows_answers_and_survives_loops():
+    questions = make_questions()
+    assert [q.id for q in walk_path(questions, {"mc": "Vue"})] == ["mc", "vue"]
+    assert [q.id for q in walk_path(questions, {"mc": "React"})] == ["mc"]
+    assert [q.id for q in walk_path(questions, {})] == ["mc", "react", "vue"]
+
+    yes_no = Question(id="yn", order_index=6, question_type="yes_no",
+                      logic_jumps=[{"choice_id": "yes", "target_question_id": "mc"}])
+    looped = [q for q in questions if q.question_type != "thank_you"] + [yes_no]
+    assert [q.id for q in walk_path(looped, {"yn": "Yes"})] == ["mc", "react", "vue", "yn"]
 
 
 def test_contact_page_subfield_validation():

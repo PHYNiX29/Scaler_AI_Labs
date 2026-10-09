@@ -1,30 +1,24 @@
 import uuid
 from datetime import datetime, timezone
-from werkzeug.security import generate_password_hash, check_password_hash
-from app.extensions import db
+from sqlalchemy import Column, DateTime, String
+from sqlalchemy.orm import relationship
+from app.database import Base
 
 
-class User(db.Model):
+class User(Base):
     __tablename__ = "users"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: uuid.uuid4().hex)
-    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(255), nullable=False)
-    name = db.Column(db.String(150), nullable=False, default="")
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = db.Column(
-        db.DateTime,
+    id = Column(String(36), primary_key=True, default=lambda: uuid.uuid4().hex)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    name = Column(String(150), nullable=False, default="")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    forms = db.relationship("Form", backref="creator", lazy=True, cascade="all, delete-orphan")
-
-    def set_password(self, password: str):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password: str) -> bool:
-        return check_password_hash(self.password_hash, password)
+    forms = relationship("Form", backref="creator", lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
